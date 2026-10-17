@@ -10,6 +10,7 @@
 #include "../../system/statistics_manager.h"
 #include "../../system/screensaver_settings.h"
 #include "../../hardware/hardware_manager.h"
+#include "../../hardware/HallSensor.h"
 #include "../../network/network_manager.h"
 #include "../../network/provisioning_service.h"
 #include "../../network/device_web_server.h"
@@ -49,6 +50,16 @@ void MenuScreen::create(BluetoothManager* bluetooth, GrindController* grind_ctrl
     scale_weight_label = nullptr;
     scale_tare_button = nullptr;
     scale_item = nullptr;
+    grind_knob_active = false;
+    grind_knob_page = nullptr;
+    grind_knob_item = nullptr;
+    knob_dial_label = nullptr;
+    knob_adc_label = nullptr;
+    knob_clear_button = nullptr;
+    for (int i = 0; i < HW_HALL_NUM_CAL_POINTS; i++) {
+        knob_cal_status_labels[i] = nullptr;
+        knob_cal_read_buttons[i] = nullptr;
+    }
     network_page = nullptr;
     network_status_label = nullptr;
     network_detail_label = nullptr;
@@ -164,6 +175,9 @@ void MenuScreen::create_menu_ui() {
     scale_page = lv_menu_page_create(menu, "Scale");
     create_scale_page(scale_page);
 
+    grind_knob_page = lv_menu_page_create(menu, "Grind Knob");
+    create_grind_knob_page(grind_knob_page);
+
     data_page = lv_menu_page_create(menu, "Logs & Data");
     create_data_page(data_page);
 
@@ -176,13 +190,16 @@ void MenuScreen::create_menu_ui() {
     // Create menu items grouped with separators
     create_separator(main_page, "Tools");
     scale_item = create_menu_item(main_page, "Scale");
+    grind_knob_item = create_menu_item(main_page, "Grind Knob");
     cal_button = create_menu_item(main_page, "Calibrate");
     autotune_button = create_menu_item(main_page, "Tune Pulses");
     motor_test_button = create_menu_item(main_page, "Motor Test");
 
     lv_menu_set_load_page_event(menu, scale_item, scale_page);
+    lv_menu_set_load_page_event(menu, grind_knob_item, grind_knob_page);
 
     lv_obj_add_flag(scale_item, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(grind_knob_item, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_flag(cal_button, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_flag(autotune_button, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_flag(motor_test_button, LV_OBJ_FLAG_CLICKABLE);
@@ -248,6 +265,18 @@ void MenuScreen::create_menu_ui() {
             }
         } else if (self->scale_active) {
             self->scale_active = false;
+        }
+
+        bool on_grind_knob = (cur == self->grind_knob_page);
+        if (on_grind_knob) {
+            if (!self->grind_knob_active) {
+                self->grind_knob_active = true;
+                if (self->hardware_manager) {
+                    self->update_hall_calibration_display(self->hardware_manager->get_hall_sensor());
+                }
+            }
+        } else if (self->grind_knob_active) {
+            self->grind_knob_active = false;
         }
     };
 
@@ -731,6 +760,83 @@ void MenuScreen::create_scale_page(lv_obj_t* parent) {
     if (scale_tare_button) {
         lv_obj_add_event_cb(scale_tare_button, EventBridgeLVGL::dispatch_event, LV_EVENT_CLICKED,
                            reinterpret_cast<void*>(static_cast<intptr_t>(ET::MENU_SCALE_TARE)));
+    }
+}
+
+void MenuScreen::create_grind_knob_page(lv_obj_t* parent) {
+    lv_obj_set_layout(parent, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(parent, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(parent, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_all(parent, 10, 0);
+    lv_obj_set_style_pad_gap(parent, 8, 0);
+    lv_obj_set_scroll_dir(parent, LV_DIR_VER);
+    lv_obj_set_scrollbar_mode(parent, LV_SCROLLBAR_MODE_AUTO);
+
+    // Live Tracking Section
+    create_separator(parent, "Live Position");
+
+    knob_dial_label = lv_label_create(parent);
+    lv_label_set_text(knob_dial_label, "--");
+    lv_obj_set_style_text_font(knob_dial_label, &lv_font_montserrat_56, 0);
+    lv_obj_set_style_text_color(knob_dial_label, lv_color_hex(THEME_COLOR_TEXT_PRIMARY), 0);
+    lv_obj_set_style_text_align(knob_dial_label, LV_TEXT_ALIGN_CENTER, 0);
+
+    create_data_label(parent, "Raw ADC:", &knob_adc_label);
+    if (knob_adc_label) {
+        lv_label_set_text(knob_adc_label, "--");
+    }
+
+    // 5-Point Calibration Section
+    create_separator(parent, "6-Point Calibration");
+    create_description_label(parent, "Set knob to dial setting, then tap READ to record ADC value.");
+
+    using ET = EventBridgeLVGL::EventType;
+
+    for (int i = 0; i < HW_HALL_NUM_CAL_POINTS; i++) {
+        // Container row for each calibration point
+        lv_obj_t* row = lv_obj_create(parent);
+        style_as_button(row, 260, LV_SIZE_CONTENT);
+        lv_obj_set_style_margin_bottom(row, 6, 0);
+        lv_obj_set_style_pad_all(row, 10, 0);
+        lv_obj_set_layout(row, LV_LAYOUT_FLEX);
+        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+        // Left info column
+        lv_obj_t* col = lv_obj_create(row);
+        lv_obj_set_style_bg_opa(col, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_width(col, 0, 0);
+        lv_obj_set_style_pad_all(col, 0, 0);
+        lv_obj_set_layout(col, LV_LAYOUT_FLEX);
+        lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_flex_align(col, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+        lv_obj_clear_flag(col, LV_OBJ_FLAG_SCROLLABLE);
+
+        char pt_name[24];
+        snprintf(pt_name, sizeof(pt_name), i == 0 ? "Dial 0.0 (Touch)" : "Dial %.1f", static_cast<float>(i));
+        lv_obj_t* title_lbl = lv_label_create(col);
+        lv_label_set_text(title_lbl, pt_name);
+        lv_obj_set_style_text_font(title_lbl, &lv_font_montserrat_24, 0);
+        lv_obj_set_style_text_color(title_lbl, lv_color_hex(THEME_COLOR_TEXT_PRIMARY), 0);
+
+        knob_cal_status_labels[i] = lv_label_create(col);
+        lv_label_set_text(knob_cal_status_labels[i], "Not set");
+        lv_obj_set_style_text_font(knob_cal_status_labels[i], &lv_font_montserrat_24, 0);
+        lv_obj_set_style_text_color(knob_cal_status_labels[i], lv_color_hex(THEME_COLOR_TEXT_SECONDARY), 0);
+
+        // Read button
+        knob_cal_read_buttons[i] = create_button(row, "READ", lv_color_hex(THEME_COLOR_PRIMARY), 80, 44, &lv_font_montserrat_24);
+        lv_obj_set_user_data(knob_cal_read_buttons[i], reinterpret_cast<void*>(static_cast<intptr_t>(i)));
+        lv_obj_add_event_cb(knob_cal_read_buttons[i], EventBridgeLVGL::dispatch_event, LV_EVENT_CLICKED,
+                            reinterpret_cast<void*>(static_cast<intptr_t>(ET::HALL_CAL_RECORD_POINT)));
+    }
+
+    knob_clear_button = create_button(parent, "Clear Calibration", lv_color_hex(THEME_COLOR_WARNING));
+    lv_obj_set_style_margin_top(knob_clear_button, 10, 0);
+    lv_obj_set_style_margin_bottom(knob_clear_button, 20, 0);
+    if (knob_clear_button) {
+        lv_obj_add_event_cb(knob_clear_button, EventBridgeLVGL::dispatch_event, LV_EVENT_CLICKED,
+                            reinterpret_cast<void*>(static_cast<intptr_t>(ET::HALL_CAL_CLEAR)));
     }
 }
 
@@ -1442,6 +1548,65 @@ void MenuScreen::update_scale_weight(float weight) {
     char buffer[24];
     snprintf(buffer, sizeof(buffer), SYS_WEIGHT_DISPLAY_FORMAT, weight);
     lv_label_set_text(scale_weight_label, buffer);
+}
+
+void MenuScreen::reset_grind_knob_display() {
+    if (knob_dial_label) {
+        lv_label_set_text(knob_dial_label, "--");
+    }
+    if (knob_adc_label) {
+        lv_label_set_text(knob_adc_label, "--");
+    }
+}
+
+void MenuScreen::update_grind_knob_display(float dial, int32_t raw_adc) {
+    if (knob_dial_label) {
+        if (std::isnan(dial)) {
+            lv_label_set_text(knob_dial_label, "--");
+        } else {
+            char buffer[16];
+            snprintf(buffer, sizeof(buffer), "%.1f", dial);
+            lv_label_set_text(knob_dial_label, buffer);
+        }
+    }
+    if (knob_adc_label) {
+        char buffer[16];
+        snprintf(buffer, sizeof(buffer), "%ld", raw_adc);
+        lv_label_set_text(knob_adc_label, buffer);
+    }
+}
+
+void MenuScreen::update_hall_calibration_display(const HallSensor* hall) {
+    if (!hall) return;
+    for (int i = 0; i < HW_HALL_NUM_CAL_POINTS; i++) {
+        bool valid = hall->is_point_calibrated(i);
+        int32_t adc = hall->get_point_adc(i);
+        update_hall_point_status(i, adc, valid);
+    }
+}
+
+void MenuScreen::update_hall_point_status(int point_index, int32_t adc, bool valid) {
+    if (point_index < 0 || point_index >= HW_HALL_NUM_CAL_POINTS) return;
+    if (!knob_cal_status_labels[point_index]) return;
+
+    if (valid) {
+        char buffer[32];
+        snprintf(buffer, sizeof(buffer), "ADC: %ld", adc);
+        lv_label_set_text(knob_cal_status_labels[point_index], buffer);
+        lv_obj_set_style_text_color(knob_cal_status_labels[point_index], lv_color_hex(THEME_COLOR_SUCCESS), 0);
+    } else {
+        lv_label_set_text(knob_cal_status_labels[point_index], "Not set");
+        lv_obj_set_style_text_color(knob_cal_status_labels[point_index], lv_color_hex(THEME_COLOR_TEXT_SECONDARY), 0);
+    }
+}
+
+int MenuScreen::get_read_button_index(lv_obj_t* btn) const {
+    for (int i = 0; i < HW_HALL_NUM_CAL_POINTS; i++) {
+        if (knob_cal_read_buttons[i] == btn) {
+            return i;
+        }
+    }
+    return -1;
 }
 
 void MenuScreen::update_grind_mode_toggles() {

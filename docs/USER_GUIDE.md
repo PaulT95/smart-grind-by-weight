@@ -116,13 +116,21 @@ Main Screen (swipe left/right between tabs, up/down to toggle weight/time mode i
 |   \-- GRIND button (red=weight, blue=time)
 |   \-- Time mode completion: OK + PULSE buttons
 |
-\-- Menu (scrollable hub)
-    |
-    +-- Tools (quick actions)
-    |   |-- Scale (live weight view with Tare action)
-    |   |-- Calibrate (launch calibration workflow)
-    |   |-- Tune Pulses (auto-tune motor latency)
-    |   \-- Motor Test (1s safety pulse)
++-- Menu (scrollable hub)
+|   \-- Launch full settings & diagnostics menu
+|
+\-- Grind Dial (DJ-style dial gauge)
+    |-- Live circular arc and dial setting display (0.0 to 5.0)
+    \-- Live raw ADC readout
+
+Menu Hub
+|
++-- Tools (quick actions)
+|   |-- Scale (live weight view with Tare action)
+|   |-- Grind Knob (live dial tracking & 6-point calibration)
+|   |-- Calibrate (launch calibration workflow)
+|   |-- Tune Pulses (auto-tune motor latency)
+|   \-- Motor Test (1s safety pulse)
     |
     +-- Settings
     |   +-- Bluetooth

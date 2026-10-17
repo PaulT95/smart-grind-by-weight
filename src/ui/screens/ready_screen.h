@@ -25,6 +25,11 @@ private:
     lv_obj_t* wifi_detail_label;
     lv_obj_t* wifi_qr;
     lv_obj_t* menu_tab;
+    lv_obj_t* knob_tab;
+    lv_obj_t* knob_arc;
+    lv_obj_t* knob_dial_label;
+    lv_obj_t* knob_badge_label;
+    lv_obj_t* knob_adc_label;
     ReadyScreenText wifi_status_text;
     ReadyScreenText wifi_detail_text;
     ReadyScreenText wifi_qr_payload;
@@ -36,7 +41,8 @@ public:
     static constexpr int PROFILE_TAB_COUNT = 3;
     static constexpr int WIFI_TAB_INDEX = 4;
     static constexpr int MENU_TAB_INDEX = 5;
-    static constexpr int TAB_COUNT = 6;
+    static constexpr int KNOB_TAB_INDEX = 6;
+    static constexpr int TAB_COUNT = 7;
 
     static bool is_profile_tab(int tab) {
         return tab >= PROFILE_TAB_START_INDEX &&
@@ -51,6 +57,7 @@ public:
     void update_profile_values(const float values[3], GrindMode mode);
     void update_manual_scale(float weight, bool available, bool taring);
     void update_network_status();
+    void update_grind_knob(float dial, int32_t raw_adc, bool is_calibrated);
     void set_active_tab(int tab);
     void set_profile_long_press_handler(lv_event_cb_t handler);
     void set_manual_tare_handler(lv_event_cb_t handler);
@@ -59,10 +66,12 @@ public:
     lv_obj_t* get_screen() const { return screen; }
     lv_obj_t* get_tabview() const { return tabview; }
     lv_obj_t* get_menu_tab() const { return menu_tab; }
+    lv_obj_t* get_knob_tab() const { return knob_tab; }
     
 private:
     void create_profile_page(lv_obj_t* parent, int profile_index, const char* profile_name, float weight);
     void create_manual_page(lv_obj_t* parent);
     void create_wifi_page(lv_obj_t* parent);
     void create_menu_page(lv_obj_t* parent);
+    void create_knob_page(lv_obj_t* parent);
 };

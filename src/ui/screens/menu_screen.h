@@ -21,6 +21,16 @@ private:
     lv_obj_t* stats_page;
     lv_obj_t* diagnostics_page;
     lv_obj_t* scale_page;
+    lv_obj_t* grind_knob_page;
+
+    // Tools entries / grind knob page elements
+    lv_obj_t* grind_knob_item;
+    lv_obj_t* knob_dial_label;
+    lv_obj_t* knob_adc_label;
+    lv_obj_t* knob_cal_status_labels[HW_HALL_NUM_CAL_POINTS];
+    lv_obj_t* knob_cal_read_buttons[HW_HALL_NUM_CAL_POINTS];
+    lv_obj_t* knob_clear_button;
+    bool grind_knob_active;
 
     // Info tab elements
     lv_obj_t* info_label;
@@ -142,6 +152,11 @@ public:
     void update_motor_latency_label(float latency_ms);
     void reset_scale_display();
     void update_scale_weight(float weight);
+    void reset_grind_knob_display();
+    void update_grind_knob_display(float dial, int32_t raw_adc);
+    void update_hall_calibration_display(const class HallSensor* hall);
+    void update_hall_point_status(int point_index, int32_t adc, bool valid);
+    int get_read_button_index(lv_obj_t* btn) const;
 
     bool is_visible() const { return visible; }
     lv_obj_t* get_screen() const { return screen; }
@@ -153,6 +168,8 @@ public:
     lv_obj_t* get_motor_test_button() const { return motor_test_button; }
     lv_obj_t* get_autotune_button() const { return autotune_button; }
     bool is_scale_page_active() const { return scale_active; }
+    bool is_grind_knob_page_active() const { return grind_knob_active; }
+    lv_obj_t* get_grind_knob_clear_button() const { return knob_clear_button; }
     lv_obj_t* get_ble_toggle() const { return ble_toggle; }
     lv_obj_t* get_ble_startup_toggle() const { return ble_startup_toggle; }
     lv_obj_t* get_logging_toggle() const { return logging_toggle; }
@@ -184,6 +201,7 @@ private:
     void create_display_page(lv_obj_t* parent);
     void create_grind_mode_page(lv_obj_t* parent);
     void create_scale_page(lv_obj_t* parent);
+    void create_grind_knob_page(lv_obj_t* parent);
     void create_data_page(lv_obj_t* parent);
     void create_stats_page(lv_obj_t* parent);
     void create_diagnostics_page(lv_obj_t* parent);

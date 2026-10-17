@@ -22,4 +22,5 @@ private:
     UIManager* ui_manager_;
     uint32_t last_network_update_ms_ = 0;
     uint32_t last_manual_scale_update_ms_ = 0;
+    uint32_t last_knob_update_ms_ = 0;
 };

@@ -80,6 +80,7 @@ void ReadyScreen::create() {
     profile_tabs[2] = lv_tabview_add_tab(tabview, "Custom");
     wifi_tab = lv_tabview_add_tab(tabview, "WI-FI");
     menu_tab = lv_tabview_add_tab(tabview, "MENU");
+    knob_tab = lv_tabview_add_tab(tabview, "KNOB");
 
     create_manual_page(manual_tab);
 
@@ -95,6 +96,9 @@ void ReadyScreen::create() {
 
     // Create menu tab page
     create_menu_page(menu_tab);
+
+    // Create DJ-style knob dial tab page
+    create_knob_page(knob_tab);
 
     update_profile_values(default_weights, GrindMode::WEIGHT);
 
@@ -330,5 +334,139 @@ void ReadyScreen::set_manual_tare_handler(lv_event_cb_t handler) {
         lv_obj_add_event_cb(manual_tare_button, handler, LV_EVENT_CLICKED,
                             reinterpret_cast<void*>(static_cast<intptr_t>(
                                 EventBridgeLVGL::EventType::MANUAL_TARE)));
+    }
+}
+
+// I changed from here on
+#include <cmath>
+#include <cstdio>
+
+namespace {
+uint32_t get_dial_theme_color(float dial) {
+    if (std::isnan(dial)) return 0x555555;
+    if (dial <= 1.0f) return 0x00E5FF;       // Cyan - Turkish / Zero
+    if (dial <= 2.0f) return 0x2979FF;       // Royal Blue - Fine Espresso
+    if (dial <= 3.0f) return 0x00E676;       // Emerald Green - Espresso / Moka
+    if (dial <= 4.0f) return 0xFFD600;       // Warm Gold - Aeropress
+    if (dial <= 4.8f) return 0xFF9100;       // Orange - Pour Over / Filter
+    return 0xFF1744;                         // Deep Red - French Press / Coarse
+}
+
+const char* get_dial_grind_type(float dial) {
+    if (std::isnan(dial)) return "UNCALIBRATED";
+    if (dial < 0.3f) return "TOUCH / ZERO";
+    if (dial <= 1.2f) return "TURKISH";
+    if (dial <= 2.2f) return "ESPRESSO";
+    if (dial <= 3.2f) return "MOKA POT";
+    if (dial <= 4.2f) return "POUR OVER";
+    return "FRENCH PRESS";
+}
+} // namespace
+
+void ReadyScreen::create_knob_page(lv_obj_t* parent) {
+    lv_obj_set_layout(parent, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(parent, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(parent, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_all(parent, 4, 0);
+    lv_obj_set_style_pad_gap(parent, 8, 0);
+    lv_obj_clear_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+
+    // Title label
+    lv_obj_t* title = lv_label_create(parent);
+    lv_label_set_text(title, "GRIND DIAL");
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_32, 0);
+    lv_obj_set_style_text_color(title, lv_color_hex(THEME_COLOR_TEXT_PRIMARY), 0);
+
+    // Circular DJ-style dial knob arc
+    knob_arc = lv_arc_create(parent);
+    lv_obj_set_size(knob_arc, 190, 190);
+    lv_arc_set_rotation(knob_arc, 135);
+    lv_arc_set_bg_angles(knob_arc, 0, 270);
+    lv_arc_set_range(knob_arc, 0, 50); // 0.0 to 5.0 (0.1 resolution)
+    lv_arc_set_value(knob_arc, 0);
+    lv_obj_set_style_arc_color(knob_arc, lv_color_hex(0x222222), LV_PART_MAIN);
+    lv_obj_set_style_arc_width(knob_arc, 14, LV_PART_MAIN);
+    lv_obj_set_style_arc_color(knob_arc, lv_color_hex(0x00E5FF), LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(knob_arc, 14, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_rounded(knob_arc, true, LV_PART_INDICATOR);
+    lv_obj_remove_style(knob_arc, nullptr, LV_PART_KNOB); // Clean modern dial indicator
+    lv_obj_clear_flag(knob_arc, LV_OBJ_FLAG_CLICKABLE);
+
+    // Inside the arc: center container with dial value and raw ADC
+    lv_obj_t* center_cont = lv_obj_create(knob_arc);
+    lv_obj_set_size(center_cont, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(center_cont, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(center_cont, 0, 0);
+    lv_obj_set_style_pad_all(center_cont, 0, 0);
+    lv_obj_set_layout(center_cont, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(center_cont, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(center_cont, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_center(center_cont);
+    lv_obj_clear_flag(center_cont, LV_OBJ_FLAG_SCROLLABLE);
+
+    knob_dial_label = lv_label_create(center_cont);
+    lv_label_set_text(knob_dial_label, "--");
+    lv_obj_set_style_text_font(knob_dial_label, &lv_font_montserrat_56, 0);
+    lv_obj_set_style_text_color(knob_dial_label, lv_color_hex(THEME_COLOR_TEXT_PRIMARY), 0);
+
+    // Inside the arc, under the number: raw ADC value ("raw:1234")
+    knob_badge_label = lv_label_create(center_cont);
+    lv_label_set_text(knob_badge_label, "raw:--");
+    lv_obj_set_style_text_font(knob_badge_label, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(knob_badge_label, lv_color_hex(THEME_COLOR_TEXT_SECONDARY), 0);
+
+    // Below the arc: grind type, colored to match the dial
+    knob_adc_label = lv_label_create(parent);
+    lv_label_set_text(knob_adc_label, "UNCALIBRATED");
+    lv_obj_set_style_text_font(knob_adc_label, &lv_font_montserrat_32, 0);
+    lv_obj_set_style_text_color(knob_adc_label, lv_color_hex(THEME_COLOR_WARNING), 0);
+}
+
+void ReadyScreen::update_grind_knob(float dial, int32_t raw_adc, bool is_calibrated) {
+    const bool valid = is_calibrated && !std::isnan(dial);
+
+    // Arc
+    if (knob_arc) {
+        if (!valid) {
+            lv_arc_set_value(knob_arc, 0);
+            lv_obj_set_style_arc_color(knob_arc, lv_color_hex(0x555555), LV_PART_INDICATOR);
+        } else {
+            int32_t arc_val = static_cast<int32_t>(dial * 10.0f + 0.5f);
+            if (arc_val < 0) arc_val = 0;
+            if (arc_val > 50) arc_val = 50;
+            lv_arc_set_value(knob_arc, arc_val);
+            lv_obj_set_style_arc_color(knob_arc, lv_color_hex(get_dial_theme_color(dial)), LV_PART_INDICATOR);
+        }
+    }
+
+    // Big dial number
+    if (knob_dial_label) {
+        if (!valid) {
+            lv_label_set_text(knob_dial_label, "--");
+            lv_obj_set_style_text_color(knob_dial_label, lv_color_hex(THEME_COLOR_TEXT_SECONDARY), 0);
+        } else {
+            char buf[16];
+            snprintf(buf, sizeof(buf), "%.1f", dial);
+            lv_label_set_text(knob_dial_label, buf);
+            lv_obj_set_style_text_color(knob_dial_label, lv_color_hex(THEME_COLOR_TEXT_PRIMARY), 0);
+        }
+    }
+
+    // Inside the arc: raw ADC value
+    if (knob_badge_label) {
+        char buf[24];
+        snprintf(buf, sizeof(buf), "raw:%ld", static_cast<long>(raw_adc));
+        lv_label_set_text(knob_badge_label, buf);
+    }
+
+    // Below the arc: grind type
+    if (knob_adc_label) {
+        if (!valid) {
+            lv_label_set_text(knob_adc_label, "UNCALIBRATED");
+            lv_obj_set_style_text_color(knob_adc_label, lv_color_hex(THEME_COLOR_WARNING), 0);
+        } else {
+            lv_label_set_text(knob_adc_label, get_dial_grind_type(dial));
+            lv_obj_set_style_text_color(knob_adc_label, lv_color_hex(get_dial_theme_color(dial)), 0);
+        }
     }
 }

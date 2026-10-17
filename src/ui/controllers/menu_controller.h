@@ -18,6 +18,8 @@ public:
     void handle_motor_test();
     void handle_scale_open();
     void handle_scale_tare();
+    void handle_hall_cal_record_point(lv_event_t* e);
+    void handle_hall_cal_clear();
     void handle_autotune();
     void handle_back();
     void handle_refresh_stats();

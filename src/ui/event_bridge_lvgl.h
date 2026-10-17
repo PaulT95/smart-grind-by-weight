@@ -62,6 +62,8 @@ public:
         SCREENSAVER_STARTUP_TOGGLE,
         SCREENSAVER_SLEEP_TOGGLE,
         DISPLAY_OFF_TOGGLE,
+        HALL_CAL_RECORD_POINT,
+        HALL_CAL_CLEAR,
         COUNT
     };
 

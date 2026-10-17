@@ -87,6 +87,15 @@
 #define HW_DISPLAY_MINIMAL_BRIGHTNESS_PERCENT 15                               // Minimum brightness percentage (to avoid too dim to see)
 
 //------------------------------------------------------------------------------
+// HALL EFFECT SENSOR (KY-024)
+//------------------------------------------------------------------------------
+#define HW_HALL_ADC_PIN 5                                                      // ADC1 channel 4, safe with Wi-Fi/BLE
+#define HW_HALL_NUM_SAMPLES 50                                                 // Averaging samples per reading
+#define HW_HALL_NUM_CAL_POINTS 6                                               // 6-point calibration table [0 to 5 are usually enough were 0 is touching]
+#define HW_HALL_PREFS_NS "hall"                                                // Preferences namespace for calibration
+
+//------------------------------------------------------------------------------
 // SERIAL COMMUNICATION
 //------------------------------------------------------------------------------
 #define HW_SERIAL_BAUD_RATE 115200                                             // UART baud rate for debug/logging output
+

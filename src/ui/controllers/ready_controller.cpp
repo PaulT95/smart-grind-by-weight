@@ -6,6 +6,7 @@
 #include "../../controllers/grind_mode_traits.h"
 #include "../event_bridge_lvgl.h"
 #include "../ui_manager.h"
+#include "../../hardware/HallSensor.h"
 
 ReadyUIController::ReadyUIController(UIManager* manager)
     : ui_manager_(manager) {}
@@ -32,6 +33,20 @@ void ReadyUIController::update() {
     if (now - last_network_update_ms_ >= 500) {
         last_network_update_ms_ = now;
         ui_manager_->ready_screen.update_network_status();
+    }
+
+    if (ui_manager_->state_machine &&
+        ui_manager_->state_machine->is_state(UIState::READY) &&
+        ui_manager_->current_tab == ReadyScreen::KNOB_TAB_INDEX &&
+        now - last_knob_update_ms_ >= 500) {
+        last_knob_update_ms_ = now;
+        auto* hardware = ui_manager_->get_hardware_manager();
+        auto* hall = hardware ? hardware->get_hall_sensor() : nullptr;
+        if (hall) {
+            int32_t raw = hall->read_raw_adc();
+            float dial = hall->calculate_dial(raw);
+            ui_manager_->ready_screen.update_grind_knob(dial, raw, hall->is_calibrated());
+        }
     }
 }
 
@@ -80,6 +95,15 @@ void ReadyUIController::handle_tab_change(int tab) {
         ui_manager_->current_mode = ui_manager_->profile_controller->get_grind_mode();
         ui_manager_->grinding_screen.set_mode(ui_manager_->current_mode);
         refresh_profiles();
+    } else if (tab == ReadyScreen::KNOB_TAB_INDEX) {
+        last_knob_update_ms_ = millis();
+        auto* hardware = ui_manager_->get_hardware_manager();
+        auto* hall = hardware ? hardware->get_hall_sensor() : nullptr;
+        if (hall) {
+            int32_t raw = hall->read_raw_adc();
+            float dial = hall->calculate_dial(raw);
+            ui_manager_->ready_screen.update_grind_knob(dial, raw, hall->is_calibrated());
+        }
     }
 
     if (ui_manager_->grinding_controller_) {

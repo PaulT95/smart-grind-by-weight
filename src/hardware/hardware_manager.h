@@ -3,6 +3,7 @@
 #include "display_manager.h"
 #include "WeightSensor.h"
 #include "grinder.h"
+#include "HallSensor.h"
 #include "../controllers/autotune_controller.h"
 
 class GrindController; // Forward declaration
@@ -12,6 +13,7 @@ private:
     DisplayManager display_manager;
     WeightSensor weight_sensor;
     Grinder grinder;
+    HallSensor hall_sensor;
     Preferences preferences;
     AutoTuneController autotune_controller;
     bool initialized;
@@ -30,6 +32,7 @@ public:
     WeightSensor* get_weight_sensor() { return &weight_sensor; }
     WeightSensor* get_load_cell() { return &weight_sensor; } // Legacy compatibility
     Grinder* get_grinder() { return &grinder; }
+    HallSensor* get_hall_sensor() { return &hall_sensor; }
     Preferences* get_preferences() { return &preferences; }
     AutoTuneController* get_autotune_controller() { return &autotune_controller; }
     

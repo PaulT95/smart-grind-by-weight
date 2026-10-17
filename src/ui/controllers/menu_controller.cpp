@@ -21,6 +21,7 @@
 #include "../ui_helpers.h"
 #include "../ui_manager.h"
 #include "../screens/menu_screen.h"
+#include "../../hardware/HallSensor.h"
 
 MenuUIController::MenuUIController(UIManager* manager)
     : ui_manager_(manager) {}
@@ -72,6 +73,8 @@ void MenuUIController::register_events() {
     EventBridgeLVGL::register_handler(ET::SCREENSAVER_STARTUP_TOGGLE, [this](lv_event_t*) { handle_screensaver_startup_toggle(); });
     EventBridgeLVGL::register_handler(ET::SCREENSAVER_SLEEP_TOGGLE, [this](lv_event_t*) { handle_screensaver_sleep_toggle(); });
     EventBridgeLVGL::register_handler(ET::DISPLAY_OFF_TOGGLE, [this](lv_event_t*) { handle_display_off_toggle(); });
+    EventBridgeLVGL::register_handler(ET::HALL_CAL_RECORD_POINT, [this](lv_event_t* e) { handle_hall_cal_record_point(e); });
+    EventBridgeLVGL::register_handler(ET::HALL_CAL_CLEAR, [this](lv_event_t*) { handle_hall_cal_clear(); });
 
     // Note: Event registration for menu widgets is done in the page creation functions
     // (menu_screen.cpp) because the menu is created lazily and destroyed on hide.
@@ -107,6 +110,53 @@ void MenuUIController::update() {
     if (ui_manager_->menu_screen.is_scale_page_active()) {
         float display_weight = sensor ? sensor->get_display_weight() : 0.0f;
         ui_manager_->menu_screen.update_scale_weight(display_weight);
+    }
+
+    if (ui_manager_->menu_screen.is_grind_knob_page_active()) {
+        static uint32_t last_knob_update_ms = 0;
+        if (now - last_knob_update_ms >= 500) {
+            last_knob_update_ms = now;
+            HallSensor* hall = ui_manager_->hardware_manager ? ui_manager_->hardware_manager->get_hall_sensor() : nullptr;
+            if (hall) {
+                int32_t raw = hall->read_raw_adc();
+                float dial = hall->calculate_dial(raw);
+                ui_manager_->menu_screen.update_grind_knob_display(dial, raw);
+            }
+        }
+    }
+}
+
+void MenuUIController::handle_hall_cal_record_point(lv_event_t* e) {
+    if (!ui_manager_ || !ui_manager_->hardware_manager) return;
+
+    lv_obj_t* target = static_cast<lv_obj_t*>(lv_event_get_target_obj(e));
+    int point_index = ui_manager_->menu_screen.get_read_button_index(target);
+    if (point_index < 0) {
+        point_index = static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(target)));
+    }
+
+    if (point_index >= 0 && point_index < HW_HALL_NUM_CAL_POINTS) {
+        HallSensor* hall = ui_manager_->hardware_manager->get_hall_sensor();
+        if (hall) {
+            hall->record_calibration_point(point_index);
+            int32_t adc = hall->get_point_adc(point_index);
+            ui_manager_->menu_screen.update_hall_point_status(point_index, adc, true);
+
+            float dial = hall->get_dial_position();
+            int32_t raw = hall->get_raw_adc();
+            ui_manager_->menu_screen.update_grind_knob_display(dial, raw);
+        }
+    }
+}
+
+void MenuUIController::handle_hall_cal_clear() {
+    if (!ui_manager_ || !ui_manager_->hardware_manager) return;
+
+    HallSensor* hall = ui_manager_->hardware_manager->get_hall_sensor();
+    if (hall) {
+        hall->clear_calibration();
+        ui_manager_->menu_screen.update_hall_calibration_display(hall);
+        ui_manager_->menu_screen.reset_grind_knob_display();
     }
 }
 
