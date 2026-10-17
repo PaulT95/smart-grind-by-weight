@@ -4,6 +4,14 @@ This file records the user-visible changes in the community-maintained release
 line. Earlier release history remains available in the original project's
 [GitHub releases](https://github.com/jaapp/smart-grind-by-weight/releases).
 
+## [1.6.0] - 2026-10-17
+
+### Potential digital knob integration
+
+- This is a test version of the firmware to test the digital knob integration
+- A similar approach to the load cell, it uses a Hall sensor YK-024 with a magnet to potentially 
+  retrieve and estimate knob location and dial number.
+
 ## [1.5.9] - 2026-09-06
 
 ### Firmware update hotfix
