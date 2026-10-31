@@ -13,6 +13,7 @@
 #include "../hardware/WeightSensor.h"
 #include "../hardware/grinder.h"
 #include "../hardware/hardware_manager.h"
+#include "../hardware/HallSensor.h"
 #include "../system/screensaver_settings.h"
 #include "../system/operation_interlock.h"
 #include "device_web_server.h"
@@ -867,6 +868,7 @@ String DeviceApi::build_state_message() {
     const auto control_lock = grind_controller_->lock_control();
     WeightSensor* sensor = hardware_->get_weight_sensor();
     Grinder* grinder = hardware_->get_grinder();
+    HallSensor* hall = hardware_->get_hall_sensor();
     const bool idle = grind_controller_->get_phase() == GrindPhase::IDLE;
     const GrindMode mode = idle ? profile.mode : grind_controller_->get_mode();
     const float target_weight = idle ? profile.profiles[profile.current_profile].weight
@@ -881,13 +883,38 @@ String DeviceApi::build_state_message() {
     const float flow = sensor ? sensor->get_flow_rate() : 0.0f;
     const bool motor_running = grinder && grinder->is_grinding();
 
-    char message[640];
+    // Knob state — safe to read at any time; HallSensor caches its last reading.
+    const float dial = hall ? hall->get_dial_position() : NAN;
+    const int32_t raw_adc = hall ? hall->get_raw_adc() : 0;
+    const int32_t comp_adc = hall ? hall->get_comp_adc() : 0;
+    const float temp_c = hall ? hall->get_chip_temperature() : NAN;
+    const bool knob_calibrated = hall && hall->is_calibrated();
+    const bool dial_valid = hall && !isnan(dial);
+
+    // Format dial as "null" or a 2-decimal float for the JSON string.
+    char dial_str[16];
+    if (dial_valid) {
+        snprintf(dial_str, sizeof(dial_str), "%.2f", dial);
+    } else {
+        snprintf(dial_str, sizeof(dial_str), "null");
+    }
+
+    char temp_str[16];
+    if (!isnan(temp_c)) {
+        snprintf(temp_str, sizeof(temp_str), "%.1f", temp_c);
+    } else {
+        snprintf(temp_str, sizeof(temp_str), "null");
+    }
+
+    char message[768];
     snprintf(message, sizeof(message),
              "{\"api\":\"v1\",\"type\":\"state\",\"seq\":%lu,\"timestamp_ms\":%lu,"
              "\"grind\":{\"active\":%s,\"phase\":\"%s\",\"mode\":\"%s\",\"profile\":%d,\"progress\":%d,"
              "\"target_weight\":%.2f,\"target_time_ms\":%lu},"
              "\"scale\":{\"weight\":%.2f,\"flow\":%.2f},"
-             "\"motor\":{\"running\":%s},\"system\":{\"free_heap\":%u}}",
+             "\"motor\":{\"running\":%s},"
+             "\"knob\":{\"calibrated\":%s,\"dial\":%s,\"raw_adc\":%ld,\"comp_adc\":%ld,\"temp_c\":%s},"
+             "\"system\":{\"free_heap\":%u}}",
              static_cast<unsigned long>(sequence_.fetch_add(1) + 1), static_cast<unsigned long>(millis()),
              grind_controller_->is_active() ? "true" : "false",
              api_phase_name(*grind_controller_),
@@ -897,6 +924,11 @@ String DeviceApi::build_state_message() {
              target_weight,
              static_cast<unsigned long>(target_time_ms),
              weight, flow, motor_running ? "true" : "false",
+             knob_calibrated ? "true" : "false",
+             dial_str,
+             static_cast<long>(raw_adc),
+             static_cast<long>(comp_adc),
+             temp_str,
              static_cast<unsigned int>(ESP.getFreeHeap()));
     return String(message);
 }

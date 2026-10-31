@@ -12,6 +12,10 @@ inline unsigned long millis() {
         duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count());
 }
 
+inline float temperatureRead() {
+    return 25.0f;
+}
+
 struct SimulatorSerial {
     void println(const char* message) const {
         std::puts(message);

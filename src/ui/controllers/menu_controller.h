@@ -20,6 +20,10 @@ public:
     void handle_scale_tare();
     void handle_hall_cal_record_point(lv_event_t* e);
     void handle_hall_cal_clear();
+    void handle_hall_drift_toggle();
+    void handle_hall_drift_cal_start();
+    void handle_hall_drift_cal_finish();
+    void handle_hall_drift_cal_cancel();
     void handle_autotune();
     void handle_back();
     void handle_refresh_stats();

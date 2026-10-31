@@ -51,9 +51,103 @@ public:
     float get_dial_position() const { return last_dial_; }
 
     /**
-     * @brief Get the last read raw ADC value.
+     * @brief Get the last read raw (uncompensated) ADC value.
      */
     int32_t get_raw_adc() const { return last_raw_adc_; }
+
+    /**
+     * @brief Get the last temperature-compensated ADC value.
+     */
+    int32_t get_comp_adc() const { return last_comp_adc_; }
+
+    /**
+     * @brief Get the last read ESP32 internal chip temperature in degrees C.
+     */
+    float get_chip_temperature() const { return last_temp_c_; }
+
+    /**
+     * @brief Check if temperature drift compensation is enabled.
+     */
+    bool is_temp_comp_enabled() const { return temp_comp_enabled_; }
+
+    /**
+     * @brief Enable or disable temperature drift compensation.
+     */
+    void set_temp_comp_enabled(bool enabled) { temp_comp_enabled_ = enabled; }
+
+    /**
+     * @brief Get temperature coefficient (ADC counts per deg C).
+     */
+    float get_temp_coeff() const { return temp_coeff_; }
+
+    /**
+     * @brief Set temperature coefficient (ADC counts per deg C).
+     */
+    void set_temp_coeff(float coeff) { temp_coeff_ = coeff; }
+
+    /**
+     * @brief Get reference calibration temperature in deg C.
+     */
+    float get_temp_ref() const { return temp_ref_; }
+
+    /**
+     * @brief Set reference calibration temperature in deg C.
+     */
+    void set_temp_ref(float temp_ref) { temp_ref_ = temp_ref; }
+
+    /**
+     * @brief Read the current ESP32 die temperature in degrees C.
+     */
+    static float read_chip_temperature();
+
+    /**
+     * @brief Drift calibration status and regression metrics.
+     */
+    struct DriftCalStatus {
+        bool in_progress = false;
+        bool is_complete = false;
+        uint32_t elapsed_ms = 0;
+        int sample_count = 0;
+        float start_temp = 0.0f;
+        float current_temp = 0.0f;
+        int32_t start_adc = 0;
+        int32_t current_adc = 0;
+        float calculated_coeff = 0.0f;
+        bool has_valid_fit = false;
+    };
+
+    /**
+     * @brief Start automated drift calibration sampling.
+     */
+    void start_drift_calibration();
+
+    /**
+     * @brief Update automated drift calibration (call periodically).
+     * @return True if a sample point was recorded.
+     */
+    bool update_drift_calibration();
+
+    /**
+     * @brief Check if drift calibration is currently running.
+     */
+    bool is_drift_cal_in_progress() const { return drift_cal_active_; }
+
+    /**
+     * @brief Query current drift calibration status and regression fit.
+     */
+    DriftCalStatus get_drift_cal_status() const;
+
+    /**
+     * @brief Finish drift calibration, optionally saving the fit to NVS.
+     * @param save True to apply and persist the calculated coefficient.
+     * @return True if a valid fit was saved.
+     */
+    bool finish_drift_calibration(bool save);
+
+    /**
+     * @brief Cancel active drift calibration without saving.
+     */
+    void cancel_drift_calibration();
 
     /**
      * @brief Record current ADC reading for a given calibration point.
@@ -124,8 +218,31 @@ private:
     uint8_t pt_valid_;
 
     int32_t last_raw_adc_;
+    int32_t last_comp_adc_;
     float last_dial_;
     float filtered_adc_;
     bool has_filtered_adc_;
     bool initialized_;
+
+    // Temperature drift compensation
+    float last_temp_c_;
+    bool temp_comp_enabled_;
+    float temp_coeff_;
+    float temp_ref_;
+
+    // Live drift calibration sampling & linear regression state
+    bool drift_cal_active_;
+    uint32_t drift_cal_start_ms_;
+    uint32_t drift_cal_last_sample_ms_;
+    int drift_sample_count_;
+    float drift_start_temp_;
+    float drift_min_temp_;
+    float drift_max_temp_;
+    int32_t drift_start_adc_;
+    float drift_sum_t_;
+    float drift_sum_adc_;
+    float drift_sum_t2_;
+    float drift_sum_t_adc_;
+    float drift_calculated_coeff_;
+    bool drift_has_valid_fit_;
 };

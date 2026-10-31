@@ -31,6 +31,7 @@ are working; you no longer need to search one very long page.
 | --- | --- |
 | Update or recover the firmware | [Firmware, updates and calibration](FIRMWARE_SETUP.md) |
 | Learn the touchscreen and web controls | [Everyday use](USER_GUIDE.md) |
+| Calibrate grind knob & drift compensation | [Grind knob tracking](GRIND_KNOB_CALIBRATION.md) |
 | Diagnose a fault or download logs | [Diagnostics and data](DIAGNOSTICS_AND_DATA.md) |
 | Understand predictive stopping and pulses | [How Smart Grind works](HOW_IT_WORKS.md) |
 | Solve a known problem | [Troubleshooting](TROUBLESHOOTING.md) |

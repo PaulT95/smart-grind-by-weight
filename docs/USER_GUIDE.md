@@ -84,6 +84,9 @@ on-device control.
 ### Quick Scale View
 Need a simple live readout? Open **Menu → Scale** to jump into a full-screen weight display. Entering the page automatically tares the scale (using the same blocking overlay as the main workflow), and a large `TARE` button at the bottom lets you re-zero manually whenever you need.
 
+### Grind Knob Tracking
+The ready screen carousel includes a dedicated **Knob** tab displaying live dial positions and grind-type recommendations driven by the KY-024 Hall-effect sensor. To calibrate your 6-point dial curve or calibrate automatic thermal drift compensation, open **Menu → Grind Knob**. See the complete guide in [Grind Knob Tracking & Thermal Drift Calibration](GRIND_KNOB_CALIBRATION.md).
+
 ### Display Modes
 - **Arc Layout**: Clean, minimal arc-based interface
 - **Nerdy Layout**: Detailed charts showing flow rates and real-time grinding analytics

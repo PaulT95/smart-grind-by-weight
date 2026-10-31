@@ -26,7 +26,7 @@ motor off before the target, then uses controlled pulses to finish the dose.
 
 **[Flash firmware](https://clinteastman.github.io/smart-grind-by-weight/)** ·
 **[Build & installation guide](docs/DOC.md#start-here)** ·
-**[What's new in v1.5.9](CHANGELOG.md#159---2026-09-06)** ·
+**[What's new in v1.6.0](CHANGELOG#160---10-3109-06)** ·
 **[Troubleshooting](docs/TROUBLESHOOTING.md)**
 
 > [!TIP]
@@ -57,6 +57,10 @@ https://github.com/user-attachments/assets/e20ce3e2-417e-4a3b-bb48-05591fce9418
 </table>
 
 ## Features
+
+- **Digital Grind Knob** – Real‑time grind‑dial tracking using a KY‑024 Hall‑effect sensor, 6‑point calibration and thermal‑drift compensation. See the full installation guide in [docs/GRIND_KNOB_INSTALLATION.md](docs/GRIND_KNOB_INSTALLATION.md).
+
+> [!WARNING] **Experimental** – The digital grind knob works, but drift correction is still under active development. Use with caution and expect future improvements.
 
 - **Accurate grind-by-weight control** with predictive motor stopping,
   controlled finishing pulses and a configurable control tolerance of
@@ -94,7 +98,10 @@ https://github.com/user-attachments/assets/e20ce3e2-417e-4a3b-bb48-05591fce9418
 - **Checked settings saves and stronger fault handling**, including runtime
   save confirmation, stale-scale stops and coordinated motor/update operations.
 - **V1 and V2 Waveshare support**, reproducible CI builds, a public web flasher
-  and a deterministic Windows desktop simulator for development.
+  and a deterministic Windows desktop simulator for developme.
+  - **Digital knob adjustment**, via Hall sensor reading and 6 poitns calibration, you can see in live 
+  on the screen the knob position. Due to thermal effects, drift is present and a potential drift free method 
+  directly integrated within the settings/knob grind to correct for it.
 
 Network clients request a selected-profile start or stop through the same grind
 controller used by the touchscreen; they never drive the relay directly. The
@@ -195,8 +202,9 @@ tuning is unavailable.
 ## Community development status
 
 The released baseline supports both V1 and V2, with separate firmware builds.
-The 1.5.8 candidate passed supervised V2 Wi-Fi installation, an 18 g grind with
-saved history, and a live-settings check. Community V1 hardware testing is
+The 1.6.0 candidate passed supervised V2 Wi-Fi installation, an 18 g grind with
+saved history, and a live-settings check and knob digital adjustments via Hall sensor.
+Community V1 hardware testing is
 welcome. See [release validation](docs/RELIABILITY_RELEASE.md) for coverage limits.
 
 | Stage | Status | Outcome |
@@ -223,8 +231,11 @@ objects from mixing.
 The complete editable Fusion 360 design is included at
 `3d_files/smart-grind-by-weight. Eureka Mignon.f3z`.
 
+The stl file regarding the Hall sensor adapter is provided at
+`3d_files/Hall_sensor_adapter.stl`
+
 Please report reproducible problems through
-[GitHub Issues](https://github.com/Clinteastman/smart-grind-by-weight/issues),
+[GitHub Issues](https://github.com/PaulT95/smart-grind-by-weight/issues),
 including the board generation, firmware version and a diagnostic log where
 possible. Tested V1 hardware feedback is particularly useful.
 
@@ -235,12 +246,13 @@ possible. Tested V1 hardware feedback is particularly useful.
   original commit history and remains licensed under GPLv3. The
   [upstream README](https://github.com/jaapp/smart-grind-by-weight#readme)
   preserves the original author's project introduction and personal note.
-- v1.5 incorporates reviewed contributions from
+  [Clinteastman (@Clinteastman)](https://github.com/Clinteastman/smart-grind-by-weight). This fork retains Clinteastman's original commit and thanks  for the adaptations for both V1 and V2 waveshare esp32s3 board. 
+- v1.6 incorporates reviewed contributions from
   [Randy1st](https://github.com/Randy1st),
   [Woutifier](https://github.com/Woutifier),
   [quickcoffee](https://github.com/quickcoffee) and
   [FleischerT](https://github.com/FleischerT). See the
-  [v1.5 changelog](CHANGELOG.md#community-contributions) for the source PRs.
+  [v1.6 changelog](CHANGELOG.md#community-contributions) for the source PRs.
 - The project was inspired by
   [openGBW](https://github.com/jb-xyz/openGBW) by jb-xyz and
   [Coffee Grinder Smart Scale](https://besson.co/projects/coffee-grinder-smart-scale)

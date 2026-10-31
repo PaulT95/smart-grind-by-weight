@@ -64,6 +64,10 @@ public:
         DISPLAY_OFF_TOGGLE,
         HALL_CAL_RECORD_POINT,
         HALL_CAL_CLEAR,
+        HALL_DRIFT_TOGGLE_COMP,
+        HALL_DRIFT_CAL_START,
+        HALL_DRIFT_CAL_FINISH,
+        HALL_DRIFT_CAL_CANCEL,
         COUNT
     };
 

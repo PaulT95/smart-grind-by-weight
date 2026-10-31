@@ -19,6 +19,7 @@
 #include "../controllers/grind_controller.h"
 #include "../bluetooth/manager.h"
 #include "../hardware/hardware_manager.h"
+#include "../hardware/HallSensor.h"
 #include "../logging/grind_logging.h"
 #include "../logging/diagnostic_log.h"
 #include "network_manager.h"
@@ -462,6 +463,69 @@ void DeviceWebServer::configure_routes() {
 
     server_.on(AsyncURIMatcher::exact("/health"), HTTP_GET, [](AsyncWebServerRequest* request) {
         request->send(200, "text/plain", "ok");
+    });
+
+    server_.on(AsyncURIMatcher::exact("/api/v1/knob"), HTTP_GET, [this](AsyncWebServerRequest* request) {
+        HallSensor* hall = hardware_manager_ ? hardware_manager_->get_hall_sensor() : nullptr;
+        AsyncResponseStream* response = request->beginResponseStream("application/json");
+        if (!hall) {
+            request->send(503, "application/json", "{\"error\":\"Hall sensor not available\"}");
+            return;
+        }
+        const float dial = hall->get_dial_position();
+        const int32_t raw_adc = hall->get_raw_adc();
+        const int32_t comp_adc = hall->get_comp_adc();
+        const float temp_c = hall->get_chip_temperature();
+        const bool calibrated = hall->is_calibrated();
+        const bool dial_valid = !isnan(dial);
+
+        // Format dial value or null
+        char dial_str[16];
+        if (dial_valid) {
+            snprintf(dial_str, sizeof(dial_str), "%.2f", dial);
+        } else {
+            snprintf(dial_str, sizeof(dial_str), "null");
+        }
+
+        char temp_str[16];
+        if (!isnan(temp_c)) {
+            snprintf(temp_str, sizeof(temp_str), "%.1f", temp_c);
+        } else {
+            snprintf(temp_str, sizeof(temp_str), "null");
+        }
+
+        response->printf(
+            "{\"api\":\"v1\",\"knob\":{"
+            "\"calibrated\":%s,\"dial\":%s,\"raw_adc\":%ld,\"comp_adc\":%ld,\"temp_c\":%s,"
+            "\"temp_comp\":%s,\"temp_coeff\":%.2f,\"temp_ref\":%.1f,"
+            "\"num_cal_points\":%d,\"calibrated_count\":%d,"
+            "\"cal_points\":[",
+            calibrated ? "true" : "false",
+            dial_str,
+            static_cast<long>(raw_adc),
+            static_cast<long>(comp_adc),
+            temp_str,
+            hall->is_temp_comp_enabled() ? "true" : "false",
+            hall->get_temp_coeff(),
+            hall->get_temp_ref(),
+            HallSensor::kNumCalPoints,
+            hall->get_calibrated_point_count());
+
+        for (int i = 0; i < HallSensor::kNumCalPoints; ++i) {
+            if (i > 0) response->print(',');
+            if (hall->is_point_calibrated(i)) {
+                char pt_dial_str[16];
+                snprintf(pt_dial_str, sizeof(pt_dial_str), "%.2f", hall->get_point_dial(i));
+                response->printf(
+                    "{\"index\":%d,\"set\":true,\"dial\":%s,\"raw_adc\":%ld}",
+                    i, pt_dial_str, static_cast<long>(hall->get_point_adc(i)));
+            } else {
+                response->printf("{\"index\":%d,\"set\":false}", i);
+            }
+        }
+        response->print("]}}");;
+        response->addHeader("Cache-Control", "no-store");
+        request->send(response);
     });
 
     server_.on(AsyncURIMatcher::exact("/api/v1/logs"), HTTP_GET, [](AsyncWebServerRequest* request) {

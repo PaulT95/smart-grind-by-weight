@@ -75,6 +75,10 @@ void MenuUIController::register_events() {
     EventBridgeLVGL::register_handler(ET::DISPLAY_OFF_TOGGLE, [this](lv_event_t*) { handle_display_off_toggle(); });
     EventBridgeLVGL::register_handler(ET::HALL_CAL_RECORD_POINT, [this](lv_event_t* e) { handle_hall_cal_record_point(e); });
     EventBridgeLVGL::register_handler(ET::HALL_CAL_CLEAR, [this](lv_event_t*) { handle_hall_cal_clear(); });
+    EventBridgeLVGL::register_handler(ET::HALL_DRIFT_TOGGLE_COMP, [this](lv_event_t*) { handle_hall_drift_toggle(); });
+    EventBridgeLVGL::register_handler(ET::HALL_DRIFT_CAL_START, [this](lv_event_t*) { handle_hall_drift_cal_start(); });
+    EventBridgeLVGL::register_handler(ET::HALL_DRIFT_CAL_FINISH, [this](lv_event_t*) { handle_hall_drift_cal_finish(); });
+    EventBridgeLVGL::register_handler(ET::HALL_DRIFT_CAL_CANCEL, [this](lv_event_t*) { handle_hall_drift_cal_cancel(); });
 
     // Note: Event registration for menu widgets is done in the page creation functions
     // (menu_screen.cpp) because the menu is created lazily and destroyed on hide.
@@ -118,9 +122,16 @@ void MenuUIController::update() {
             last_knob_update_ms = now;
             HallSensor* hall = ui_manager_->hardware_manager ? ui_manager_->hardware_manager->get_hall_sensor() : nullptr;
             if (hall) {
-                int32_t raw = hall->read_raw_adc();
-                float dial = hall->calculate_dial(raw);
-                ui_manager_->menu_screen.update_grind_knob_display(dial, raw);
+                int32_t comp_adc = hall->read_raw_adc();
+                int32_t raw_adc = hall->get_raw_adc();
+                float temp_c = hall->get_chip_temperature();
+                float dial = hall->calculate_dial(comp_adc);
+                ui_manager_->menu_screen.update_grind_knob_display(dial, raw_adc, comp_adc, temp_c);
+
+                if (hall->is_drift_cal_in_progress()) {
+                    hall->update_drift_calibration();
+                    ui_manager_->menu_screen.update_drift_cal_progress(hall->get_drift_cal_status());
+                }
             }
         }
     }
@@ -144,7 +155,10 @@ void MenuUIController::handle_hall_cal_record_point(lv_event_t* e) {
 
             float dial = hall->get_dial_position();
             int32_t raw = hall->get_raw_adc();
-            ui_manager_->menu_screen.update_grind_knob_display(dial, raw);
+            int32_t comp = hall->get_comp_adc();
+            float temp_c = hall->get_chip_temperature();
+            ui_manager_->menu_screen.update_grind_knob_display(dial, raw, comp, temp_c);
+            ui_manager_->menu_screen.update_drift_compensation_display(hall);
         }
     }
 }
@@ -156,8 +170,56 @@ void MenuUIController::handle_hall_cal_clear() {
     if (hall) {
         hall->clear_calibration();
         ui_manager_->menu_screen.update_hall_calibration_display(hall);
+        ui_manager_->menu_screen.update_drift_compensation_display(hall);
         ui_manager_->menu_screen.reset_grind_knob_display();
     }
+}
+
+void MenuUIController::handle_hall_drift_toggle() {
+    if (!ui_manager_ || !ui_manager_->hardware_manager) return;
+    HallSensor* hall = ui_manager_->hardware_manager->get_hall_sensor();
+    if (!hall) return;
+
+    auto* toggle = ui_manager_->menu_screen.get_knob_temp_comp_toggle();
+    if (!toggle) return;
+
+    bool enabled = lv_obj_has_state(toggle, LV_STATE_CHECKED);
+    hall->set_temp_comp_enabled(enabled);
+    hall->save_calibration();
+    ui_manager_->menu_screen.update_drift_compensation_display(hall);
+    LOG_BLE("[HallSensor] Temperature compensation %s\n", enabled ? "ENABLED" : "DISABLED");
+}
+
+void MenuUIController::handle_hall_drift_cal_start() {
+    if (!ui_manager_ || !ui_manager_->hardware_manager) return;
+    HallSensor* hall = ui_manager_->hardware_manager->get_hall_sensor();
+    if (!hall) return;
+
+    hall->start_drift_calibration();
+    ui_manager_->menu_screen.show_drift_cal_panel(true);
+    ui_manager_->menu_screen.update_drift_cal_progress(hall->get_drift_cal_status());
+    LOG_BLE("[HallSensor] Drift calibration started from menu\n");
+}
+
+void MenuUIController::handle_hall_drift_cal_finish() {
+    if (!ui_manager_ || !ui_manager_->hardware_manager) return;
+    HallSensor* hall = ui_manager_->hardware_manager->get_hall_sensor();
+    if (!hall) return;
+
+    bool saved = hall->finish_drift_calibration(true);
+    ui_manager_->menu_screen.show_drift_cal_panel(false);
+    ui_manager_->menu_screen.update_drift_compensation_display(hall);
+    LOG_BLE("[HallSensor] Drift calibration finished from menu (saved: %s)\n", saved ? "YES" : "NO");
+}
+
+void MenuUIController::handle_hall_drift_cal_cancel() {
+    if (!ui_manager_ || !ui_manager_->hardware_manager) return;
+    HallSensor* hall = ui_manager_->hardware_manager->get_hall_sensor();
+    if (!hall) return;
+
+    hall->cancel_drift_calibration();
+    ui_manager_->menu_screen.show_drift_cal_panel(false);
+    LOG_BLE("[HallSensor] Drift calibration cancelled from menu\n");
 }
 
 void MenuUIController::handle_calibrate() {

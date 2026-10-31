@@ -55,7 +55,18 @@ void MenuScreen::create(BluetoothManager* bluetooth, GrindController* grind_ctrl
     grind_knob_item = nullptr;
     knob_dial_label = nullptr;
     knob_adc_label = nullptr;
+    knob_comp_adc_label = nullptr;
+    knob_temp_label = nullptr;
     knob_clear_button = nullptr;
+    knob_temp_comp_toggle = nullptr;
+    knob_drift_coeff_label = nullptr;
+    knob_drift_ref_label = nullptr;
+    knob_drift_cal_button = nullptr;
+    knob_drift_cal_container = nullptr;
+    knob_drift_status_label = nullptr;
+    knob_drift_detail_label = nullptr;
+    knob_drift_save_button = nullptr;
+    knob_drift_cancel_button = nullptr;
     for (int i = 0; i < HW_HALL_NUM_CAL_POINTS; i++) {
         knob_cal_status_labels[i] = nullptr;
         knob_cal_read_buttons[i] = nullptr;
@@ -273,6 +284,7 @@ void MenuScreen::create_menu_ui() {
                 self->grind_knob_active = true;
                 if (self->hardware_manager) {
                     self->update_hall_calibration_display(self->hardware_manager->get_hall_sensor());
+                    self->update_drift_compensation_display(self->hardware_manager->get_hall_sensor());
                 }
             }
         } else if (self->grind_knob_active) {
@@ -786,7 +798,17 @@ void MenuScreen::create_grind_knob_page(lv_obj_t* parent) {
         lv_label_set_text(knob_adc_label, "--");
     }
 
-    // 5-Point Calibration Section
+    create_data_label(parent, "Comp ADC:", &knob_comp_adc_label);
+    if (knob_comp_adc_label) {
+        lv_label_set_text(knob_comp_adc_label, "--");
+    }
+
+    create_data_label(parent, "Die Temp:", &knob_temp_label);
+    if (knob_temp_label) {
+        lv_label_set_text(knob_temp_label, "--");
+    }
+
+    // 6-Point Calibration Section
     create_separator(parent, "6-Point Calibration");
     create_description_label(parent, "Set knob to dial setting, then tap READ to record ADC value.");
 
@@ -833,10 +855,76 @@ void MenuScreen::create_grind_knob_page(lv_obj_t* parent) {
 
     knob_clear_button = create_button(parent, "Clear Calibration", lv_color_hex(THEME_COLOR_WARNING));
     lv_obj_set_style_margin_top(knob_clear_button, 10, 0);
-    lv_obj_set_style_margin_bottom(knob_clear_button, 20, 0);
+    lv_obj_set_style_margin_bottom(knob_clear_button, 16, 0);
     if (knob_clear_button) {
         lv_obj_add_event_cb(knob_clear_button, EventBridgeLVGL::dispatch_event, LV_EVENT_CLICKED,
                             reinterpret_cast<void*>(static_cast<intptr_t>(ET::HALL_CAL_CLEAR)));
+    }
+
+    // Thermal Drift Compensation Section
+    create_separator(parent, "Thermal Drift Compensation");
+    create_description_label(parent, "Compensates raw Hall sensor drift caused by internal board warm-up.");
+
+    create_toggle_row(parent, "Enable Comp", &knob_temp_comp_toggle);
+    if (knob_temp_comp_toggle) {
+        lv_obj_add_event_cb(knob_temp_comp_toggle, EventBridgeLVGL::dispatch_event, LV_EVENT_VALUE_CHANGED,
+                            reinterpret_cast<void*>(static_cast<intptr_t>(ET::HALL_DRIFT_TOGGLE_COMP)));
+    }
+
+    create_data_label(parent, "Coeff:", &knob_drift_coeff_label);
+    create_data_label(parent, "Ref Temp:", &knob_drift_ref_label);
+
+    knob_drift_cal_button = create_button(parent, "Calibrate Drift", lv_color_hex(THEME_COLOR_PRIMARY));
+    if (knob_drift_cal_button) {
+        lv_obj_set_style_margin_top(knob_drift_cal_button, 6, 0);
+        lv_obj_set_style_margin_bottom(knob_drift_cal_button, 10, 0);
+        lv_obj_add_event_cb(knob_drift_cal_button, EventBridgeLVGL::dispatch_event, LV_EVENT_CLICKED,
+                            reinterpret_cast<void*>(static_cast<intptr_t>(ET::HALL_DRIFT_CAL_START)));
+    }
+
+    // Drift calibration in-progress container (hidden by default)
+    knob_drift_cal_container = lv_obj_create(parent);
+    style_as_button(knob_drift_cal_container, 260, LV_SIZE_CONTENT);
+    lv_obj_set_layout(knob_drift_cal_container, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(knob_drift_cal_container, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(knob_drift_cal_container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_all(knob_drift_cal_container, 10, 0);
+    lv_obj_set_style_margin_bottom(knob_drift_cal_container, 20, 0);
+    lv_obj_add_flag(knob_drift_cal_container, LV_OBJ_FLAG_HIDDEN);
+
+    knob_drift_status_label = lv_label_create(knob_drift_cal_container);
+    lv_label_set_text(knob_drift_status_label, "Keep knob still!\nMeasuring drift...");
+    lv_obj_set_style_text_font(knob_drift_status_label, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_align(knob_drift_status_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_color(knob_drift_status_label, lv_color_hex(THEME_COLOR_WARNING), 0);
+
+    knob_drift_detail_label = lv_label_create(knob_drift_cal_container);
+    lv_label_set_text(knob_drift_detail_label, "--");
+    lv_obj_set_style_text_font(knob_drift_detail_label, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_align(knob_drift_detail_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_margin_top(knob_drift_detail_label, 6, 0);
+    lv_obj_set_style_margin_bottom(knob_drift_detail_label, 10, 0);
+
+    // Row with Save and Cancel buttons
+    lv_obj_t* btn_row = lv_obj_create(knob_drift_cal_container);
+    lv_obj_set_size(btn_row, 240, 50);
+    lv_obj_set_style_bg_opa(btn_row, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(btn_row, 0, 0);
+    lv_obj_set_style_pad_all(btn_row, 0, 0);
+    lv_obj_set_layout(btn_row, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(btn_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(btn_row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+    knob_drift_save_button = create_button(btn_row, "SAVE", lv_color_hex(THEME_COLOR_SUCCESS), 110, 44, &lv_font_montserrat_24);
+    if (knob_drift_save_button) {
+        lv_obj_add_event_cb(knob_drift_save_button, EventBridgeLVGL::dispatch_event, LV_EVENT_CLICKED,
+                            reinterpret_cast<void*>(static_cast<intptr_t>(ET::HALL_DRIFT_CAL_FINISH)));
+    }
+
+    knob_drift_cancel_button = create_button(btn_row, "CANCEL", lv_color_hex(THEME_COLOR_WARNING), 110, 44, &lv_font_montserrat_24);
+    if (knob_drift_cancel_button) {
+        lv_obj_add_event_cb(knob_drift_cancel_button, EventBridgeLVGL::dispatch_event, LV_EVENT_CLICKED,
+                            reinterpret_cast<void*>(static_cast<intptr_t>(ET::HALL_DRIFT_CAL_CANCEL)));
     }
 }
 
@@ -1557,9 +1645,15 @@ void MenuScreen::reset_grind_knob_display() {
     if (knob_adc_label) {
         lv_label_set_text(knob_adc_label, "--");
     }
+    if (knob_comp_adc_label) {
+        lv_label_set_text(knob_comp_adc_label, "--");
+    }
+    if (knob_temp_label) {
+        lv_label_set_text(knob_temp_label, "--");
+    }
 }
 
-void MenuScreen::update_grind_knob_display(float dial, int32_t raw_adc) {
+void MenuScreen::update_grind_knob_display(float dial, int32_t raw_adc, int32_t comp_adc, float temp_c) {
     if (knob_dial_label) {
         if (std::isnan(dial)) {
             lv_label_set_text(knob_dial_label, "--");
@@ -1571,8 +1665,125 @@ void MenuScreen::update_grind_knob_display(float dial, int32_t raw_adc) {
     }
     if (knob_adc_label) {
         char buffer[16];
-        snprintf(buffer, sizeof(buffer), "%ld", raw_adc);
+        snprintf(buffer, sizeof(buffer), "%ld", static_cast<long>(raw_adc));
         lv_label_set_text(knob_adc_label, buffer);
+    }
+    if (knob_comp_adc_label) {
+        char buffer[16];
+        if (comp_adc >= 0) {
+            snprintf(buffer, sizeof(buffer), "%ld", static_cast<long>(comp_adc));
+        } else {
+            snprintf(buffer, sizeof(buffer), "--");
+        }
+        lv_label_set_text(knob_comp_adc_label, buffer);
+    }
+    if (knob_temp_label) {
+        char buffer[16];
+        if (!std::isnan(temp_c)) {
+            snprintf(buffer, sizeof(buffer), "%.1f C", temp_c);
+        } else {
+            snprintf(buffer, sizeof(buffer), "--");
+        }
+        lv_label_set_text(knob_temp_label, buffer);
+    }
+}
+
+void MenuScreen::update_drift_compensation_display(const HallSensor* hall) {
+    if (!hall) return;
+    if (knob_temp_comp_toggle) {
+        if (hall->is_temp_comp_enabled()) {
+            lv_obj_add_state(knob_temp_comp_toggle, LV_STATE_CHECKED);
+        } else {
+            lv_obj_clear_state(knob_temp_comp_toggle, LV_STATE_CHECKED);
+        }
+    }
+    if (knob_drift_coeff_label) {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%.2f cnt/C", hall->get_temp_coeff());
+        lv_label_set_text(knob_drift_coeff_label, buf);
+    }
+    if (knob_drift_ref_label) {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%.1f C", hall->get_temp_ref());
+        lv_label_set_text(knob_drift_ref_label, buf);
+    }
+}
+
+void MenuScreen::show_drift_cal_panel(bool show) {
+    if (!knob_drift_cal_container) return;
+    if (show) {
+        lv_obj_clear_flag(knob_drift_cal_container, LV_OBJ_FLAG_HIDDEN);
+        if (knob_drift_cal_button) {
+            lv_obj_add_flag(knob_drift_cal_button, LV_OBJ_FLAG_HIDDEN);
+        }
+        if (knob_drift_status_label) {
+            lv_label_set_text(knob_drift_status_label, "Keep knob still!\nMeasuring drift...");
+            lv_obj_set_style_text_color(knob_drift_status_label, lv_color_hex(THEME_COLOR_WARNING), 0);
+        }
+        if (knob_drift_detail_label) {
+            lv_label_set_text(knob_drift_detail_label, "Sampling initial point...");
+        }
+        if (knob_drift_save_button) {
+            lv_obj_add_state(knob_drift_save_button, LV_STATE_DISABLED);
+            lv_obj_set_style_bg_color(knob_drift_save_button, lv_color_hex(0x555555), 0);
+        }
+    } else {
+        lv_obj_add_flag(knob_drift_cal_container, LV_OBJ_FLAG_HIDDEN);
+        if (knob_drift_cal_button) {
+            lv_obj_clear_flag(knob_drift_cal_button, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+}
+
+void MenuScreen::update_drift_cal_progress(const HallSensor::DriftCalStatus& status) {
+    if (!knob_drift_cal_container || !status.in_progress) return;
+
+    if (knob_drift_status_label) {
+        if (status.is_complete) {
+            lv_label_set_text(knob_drift_status_label, "Calibration Complete!\n(180 points collected)");
+            lv_obj_set_style_text_color(knob_drift_status_label, lv_color_hex(THEME_COLOR_SUCCESS), 0);
+        } else {
+            uint32_t total_sec = status.elapsed_ms / 1000;
+            uint32_t min = total_sec / 60;
+            uint32_t sec = total_sec % 60;
+            char buf[48];
+            snprintf(buf, sizeof(buf), "Sampling: %02lu:%02lu / 15:00",
+                     static_cast<unsigned long>(min), static_cast<unsigned long>(sec));
+            lv_label_set_text(knob_drift_status_label, buf);
+            lv_obj_set_style_text_color(knob_drift_status_label, lv_color_hex(THEME_COLOR_WARNING), 0);
+        }
+    }
+
+    if (knob_drift_detail_label) {
+        char buf[128];
+        float delta_t = status.current_temp - status.start_temp;
+        int32_t delta_adc = status.current_adc - status.start_adc;
+        if (status.is_complete) {
+            snprintf(buf, sizeof(buf), "T: %.1f->%.1f C (%+.1f C)\nADC: %ld->%ld (%+ld)\nFit: %.2f cnt/C\nTap SAVE to apply",
+                     status.start_temp, status.current_temp, delta_t,
+                     static_cast<long>(status.start_adc), static_cast<long>(status.current_adc), static_cast<long>(delta_adc),
+                     status.calculated_coeff);
+        } else if (status.has_valid_fit) {
+            snprintf(buf, sizeof(buf), "T: %.1f->%.1f C (%+.1f C)\nADC: %ld->%ld (%+ld)\nFit: %.2f cnt/C",
+                     status.start_temp, status.current_temp, delta_t,
+                     static_cast<long>(status.start_adc), static_cast<long>(status.current_adc), static_cast<long>(delta_adc),
+                     status.calculated_coeff);
+        } else {
+            snprintf(buf, sizeof(buf), "T: %.1f->%.1f C (%+.1f C)\nADC: %ld->%ld (%+ld)\nWarming up...",
+                     status.start_temp, status.current_temp, delta_t,
+                     static_cast<long>(status.start_adc), static_cast<long>(status.current_adc), static_cast<long>(delta_adc));
+        }
+        lv_label_set_text(knob_drift_detail_label, buf);
+    }
+
+    if (knob_drift_save_button) {
+        if (status.has_valid_fit) {
+            lv_obj_clear_state(knob_drift_save_button, LV_STATE_DISABLED);
+            lv_obj_set_style_bg_color(knob_drift_save_button, lv_color_hex(THEME_COLOR_SUCCESS), 0);
+        } else {
+            lv_obj_add_state(knob_drift_save_button, LV_STATE_DISABLED);
+            lv_obj_set_style_bg_color(knob_drift_save_button, lv_color_hex(0x555555), 0);
+        }
     }
 }
 

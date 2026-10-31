@@ -4,6 +4,7 @@
 #include "../../bluetooth/manager.h"
 #include "../../controllers/grind_controller.h"
 #include "../../system/diagnostics_controller.h"
+#include "../../hardware/HallSensor.h"
 #include "../ui_helpers.h"
 
 class GrindingScreen;  // Forward declaration
@@ -27,9 +28,20 @@ private:
     lv_obj_t* grind_knob_item;
     lv_obj_t* knob_dial_label;
     lv_obj_t* knob_adc_label;
+    lv_obj_t* knob_comp_adc_label;
+    lv_obj_t* knob_temp_label;
     lv_obj_t* knob_cal_status_labels[HW_HALL_NUM_CAL_POINTS];
     lv_obj_t* knob_cal_read_buttons[HW_HALL_NUM_CAL_POINTS];
     lv_obj_t* knob_clear_button;
+    lv_obj_t* knob_temp_comp_toggle;
+    lv_obj_t* knob_drift_coeff_label;
+    lv_obj_t* knob_drift_ref_label;
+    lv_obj_t* knob_drift_cal_button;
+    lv_obj_t* knob_drift_cal_container;
+    lv_obj_t* knob_drift_status_label;
+    lv_obj_t* knob_drift_detail_label;
+    lv_obj_t* knob_drift_save_button;
+    lv_obj_t* knob_drift_cancel_button;
     bool grind_knob_active;
 
     // Info tab elements
@@ -153,8 +165,11 @@ public:
     void reset_scale_display();
     void update_scale_weight(float weight);
     void reset_grind_knob_display();
-    void update_grind_knob_display(float dial, int32_t raw_adc);
+    void update_grind_knob_display(float dial, int32_t raw_adc, int32_t comp_adc = -1, float temp_c = NAN);
     void update_hall_calibration_display(const class HallSensor* hall);
+    void update_drift_compensation_display(const class HallSensor* hall);
+    void show_drift_cal_panel(bool show);
+    void update_drift_cal_progress(const HallSensor::DriftCalStatus& status);
     void update_hall_point_status(int point_index, int32_t adc, bool valid);
     int get_read_button_index(lv_obj_t* btn) const;
 
@@ -170,6 +185,10 @@ public:
     bool is_scale_page_active() const { return scale_active; }
     bool is_grind_knob_page_active() const { return grind_knob_active; }
     lv_obj_t* get_grind_knob_clear_button() const { return knob_clear_button; }
+    lv_obj_t* get_knob_temp_comp_toggle() const { return knob_temp_comp_toggle; }
+    lv_obj_t* get_knob_drift_cal_button() const { return knob_drift_cal_button; }
+    lv_obj_t* get_knob_drift_save_button() const { return knob_drift_save_button; }
+    lv_obj_t* get_knob_drift_cancel_button() const { return knob_drift_cancel_button; }
     lv_obj_t* get_ble_toggle() const { return ble_toggle; }
     lv_obj_t* get_ble_startup_toggle() const { return ble_startup_toggle; }
     lv_obj_t* get_logging_toggle() const { return logging_toggle; }
