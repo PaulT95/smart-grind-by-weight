@@ -85,11 +85,11 @@ However, this is a starting point for the (coffee) community. Probably smarter p
 The firmware includes a pre-calibrated default ($k_{\text{temp}} = -0.25\text{ cnt/}^\circ\text{C}$) that works well out of the box. If you want maximum accuracy tailored to your specific enclosure and magnet, you can run the built-in automated calibration tool.
 
 ### Sampling Details & Point Count
-* **Sampling Rate:** 1 sample every 5 seconds (12 samples per minute).
-* **Total Duration:** **15 minutes** (900 seconds).
-* **Total Points Collected:**  **180 data points** spanning the entire warm-up curve from room temperature to operating equilibrium.
+* **Sampling Rate:** 1 sample every 20 seconds (3 samples per minute).
+* **Total Duration:** **40 minutes** (2400 seconds).
+* **Total Points Collected:**  **120 data points** spanning the entire warm-up curve from room temperature to operating equilibrium.
 * **Live Regression:** Every single recorded point is included in the live least-squares fit.
-* **Auto-Completion:** At exactly `15:00` (180 points), sampling automatically stops and freezes the completed fit. Even if you walk away and return after 30 minutes, your calibration will be waiting for you.
+* **Auto-Completion:** At exactly `40:00` (120 points), sampling automatically stops and freezes the completed fit. Even if you walk away and return later, your calibration will be waiting for you.
 
 ### The Ideal "Walk-Away" Calibration Routine:
 > [!IMPORTANT]
@@ -101,14 +101,14 @@ The firmware includes a pre-calibrated default ($k_{\text{temp}} = -0.25\text{ c
 3. Navigate immediately to **Menu → Grind Knob**.
 4. Set the dial to any standard position (e.g. `2.5`). **Do not touch or turn the knob during the test.**
 5. Scroll down to **Thermal Drift Compensation** and tap **"Calibrate Drift"**.
-6. **Walk away for 15 minutes.**
+6. **Walk away for 40 minutes.**
    The ESP32 will automatically:
-   * Sample 180 data points (every 5s).
+   * Sample 120 data points (every 20s).
    * Track temperature rise from cold (e.g. 24°C) to steady operating temperature (~45°C).
-   * Fit the optimal regression slope in real time across all 180 points.
-7. **Come back after 15 minutes:**
+   * Fit the optimal regression slope in real time across all 120 points.
+7. **Come back after 40 minutes:**
    * The screen will show:  
-     `✓ Calibration Complete! (180 points collected)`  
+     `✓ Calibration Complete! (120 points collected)`  
      `Fit: -0.25 cnt/C · Tap SAVE to apply`
 8. Tap **SAVE**. The firmware immediately saves your custom coefficient and reference temperature to flash and activates drift compensation.
 

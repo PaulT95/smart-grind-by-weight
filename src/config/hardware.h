@@ -93,6 +93,8 @@
 #define HW_HALL_NUM_SAMPLES 50                                                 // Averaging samples per reading
 #define HW_HALL_NUM_CAL_POINTS 6                                               // 6-point calibration table [0 to 5 are usually enough were 0 is touching]
 #define HW_HALL_PREFS_NS "hall"                                                // Preferences namespace for calibration
+#define HW_HALL_DRIFT_SAMPLE_INTERVAL_MS 20000                                 // 20 seconds between drift samples (3 samples/min)
+#define HW_HALL_DRIFT_TOTAL_DURATION_MS (40 * 60 * 1000)                       // 40 minutes total drift calibration duration
 
 //------------------------------------------------------------------------------
 // SERIAL COMMUNICATION

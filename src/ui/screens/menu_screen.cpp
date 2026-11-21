@@ -1740,14 +1740,16 @@ void MenuScreen::update_drift_cal_progress(const HallSensor::DriftCalStatus& sta
 
     if (knob_drift_status_label) {
         if (status.is_complete) {
-            lv_label_set_text(knob_drift_status_label, "Calibration Complete!\n(180 points collected)");
+            char buf[64];
+            snprintf(buf, sizeof(buf), "Calibration Complete!\n(%d points collected)", status.sample_count);
+            lv_label_set_text(knob_drift_status_label, buf);
             lv_obj_set_style_text_color(knob_drift_status_label, lv_color_hex(THEME_COLOR_SUCCESS), 0);
         } else {
             uint32_t total_sec = status.elapsed_ms / 1000;
             uint32_t min = total_sec / 60;
             uint32_t sec = total_sec % 60;
             char buf[48];
-            snprintf(buf, sizeof(buf), "Sampling: %02lu:%02lu / 15:00",
+            snprintf(buf, sizeof(buf), "Sampling: %02lu:%02lu / 40:00",
                      static_cast<unsigned long>(min), static_cast<unsigned long>(sec));
             lv_label_set_text(knob_drift_status_label, buf);
             lv_obj_set_style_text_color(knob_drift_status_label, lv_color_hex(THEME_COLOR_WARNING), 0);

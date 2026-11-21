@@ -338,15 +338,18 @@ bool HallSensor::update_drift_calibration() {
     if (!drift_cal_active_) return false;
 
     uint32_t now = millis();
-    constexpr uint32_t kMaxDriftDurationMs = 15 * 60 * 1000;
+    constexpr uint32_t kMaxDriftDurationMs = HW_HALL_DRIFT_TOTAL_DURATION_MS;
     if (now - drift_cal_start_ms_ >= kMaxDriftDurationMs) {
         return false;
     }
 
-    if (drift_cal_last_sample_ms_ != 0 && (now - drift_cal_last_sample_ms_ < 5000)) {
+    if (drift_cal_last_sample_ms_ != 0 && (now - drift_cal_last_sample_ms_ < HW_HALL_DRIFT_SAMPLE_INTERVAL_MS)) {
         return false;
     }
     drift_cal_last_sample_ms_ = now;
+
+    // Refresh averaged reading
+    read_raw_adc();
 
     float t = read_chip_temperature();
     int32_t adc = last_raw_adc_;
@@ -377,7 +380,7 @@ bool HallSensor::update_drift_calibration() {
 HallSensor::DriftCalStatus HallSensor::get_drift_cal_status() const {
     DriftCalStatus status;
     status.in_progress = drift_cal_active_;
-    constexpr uint32_t kMaxDriftDurationMs = 15 * 60 * 1000;
+    constexpr uint32_t kMaxDriftDurationMs = HW_HALL_DRIFT_TOTAL_DURATION_MS;
     uint32_t elapsed = drift_cal_active_ ? (millis() - drift_cal_start_ms_) : 0;
     if (elapsed >= kMaxDriftDurationMs) {
         status.elapsed_ms = kMaxDriftDurationMs;

@@ -17,7 +17,7 @@ This guide covers the installation of the hardware **KY-024 Hall-effect sensor**
 
 ## Preparation
 
-First of all, print the 3D case model and while in the mean time you can check the 3 pins where the sensor attach on the board and dissoldered them. Map them for safety. [From the board you then need to sodler the 3 short cables (10cm iish) from to the sensor so it's freely movable](media\Digital_knob_installation\Step_0b.png).
+First of all, print the 3D case model and while in the mean time you can check the 3 pins where the sensor attach on the board and dissoldered them. Map them for safety. [<img src="../media/Digital_knob_installation/Step_0b.png" alt="Step 0b – board view" width="30%">](../media/Digital_knob_installation/Step_0b.png).
 Regarding the ESP32 adaptation with also the HX711 original smart grinder project, You need an extra pin usage which is **PIN 5** where you get the A0 (analog output of the KY-024). Obviosly you need +3.3V and GND too. To integrate as in the original prject, I used a [5pin JST connector](media\Digital_knob_installation\Step_0a.jpg) to make it nicer and easier to connect everything. That's up to you.
 
 ---
