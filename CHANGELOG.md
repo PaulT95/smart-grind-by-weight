@@ -4,6 +4,7 @@ This file records the user-visible changes in the community-maintained release
 line. Earlier release history remains available in the original project's
 [GitHub releases](https://github.com/jaapp/smart-grind-by-weight/releases).
 
+<<<<<<< HEAD
 ## [1.6.0] - 2026-10-31
 
 ### Digital knob integration
@@ -11,6 +12,34 @@ line. Earlier release history remains available in the original project's
 - Integration of a digital smart knob reading.
 - A similar approach to the load cell, it uses a Hall sensor KY-024 with a magnet to retrieve and estimate knob location and dial number.
 - Integrated a drift correction temperature based approach.
+=======
+## [Unreleased]
+
+### Wi-Fi setup
+
+- The setup page shows the padlock for secured networks instead of garbled
+  characters.
+- iPhones no longer autocorrect or capitalise a network name typed into the
+  setup page.
+- When the grinder cannot join the saved network, it says why: network not
+  found, password rejected, signal too weak, connection refused, unsupported
+  security or no response. The explanation appears on the setup page and on
+  **Menu → Wi-Fi**, with a one-line summary on the ready screen's Wi-Fi tab.
+  See [Troubleshooting](docs/TROUBLESHOOTING.md#wi-fi-setup-does-not-connect).
+
+### Smoother display
+
+- V2 boards draw the next part of the screen while the previous part is still
+  being sent to the panel, so menu scrolling and animations run at a higher
+  frame rate. If internal memory is short at startup, the grinder falls back
+  to smaller draw buffers instead of failing.
+- Screen updates no longer occasionally skip a frame because of timing jitter
+  (V1 and V2).
+- Buttons no longer carry a barely visible drop shadow that was recalculated
+  on every redraw, and LVGL's style cache is enabled.
+- Developers can print frame rate, frame time and free internal memory once a
+  second over USB serial by setting `DEBUG_DISPLAY_PERFORMANCE` to 1.
+>>>>>>> upstream/main
 
 ## [1.5.9] - 2026-09-06
 
